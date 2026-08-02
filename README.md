@@ -2,6 +2,9 @@
 
 A Python platform for testing web applications for security vulnerabilities and malware. The tool uses a hybrid approach that mixes static analysis, browser automation, and machine learning to detect security flaws while keeping false alarms to a minimum.
 
+
+<img width="1276" height="902" alt="image" src="https://github.com/user-attachments/assets/d6c603e1-4940-4954-8bb2-70a813f939cb" />
+
 ## Core Features & Algorithms
 
 - **Browser Automation and DOM Analysis**: Uses Playwright with Chromium and Chrome DevTools Protocol to execute JavaScript in a real browser context. It catches DOM alerts and monitors network WebSocket traffic in real time to uncover client side threats like cryptocurrency miners.
@@ -15,6 +18,8 @@ A Python platform for testing web applications for security vulnerabilities and 
 - **Machine Learning**: Scikit-Learn, pandas, numpy, joblib
 - **Automation and Security**: Playwright, Chrome DevTools Protocol, YARA, VirusTotal API
 - **Frontend**: HTML5, Vanilla CSS, WebSockets for live scan updates
+
+<img width="1692" height="897" alt="image" src="https://github.com/user-attachments/assets/b5a2a10c-3465-49e0-b7e4-351bfe449d09" />
 
 ## Getting Started
 
