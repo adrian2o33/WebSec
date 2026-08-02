@@ -1,0 +1,38 @@
+# Virtual environment
+.venv/
+venv/
+ENV/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Environment variables (sensitive data)
+.env
+
+# OS/IDE metadata
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# Temporary files and logs
+*.log
+*.tmp
+
+# Generated outputs and reports
+reports/
+
+# Document files and archives
+*.docx
+*.doc
+*.pdf
+*.odt
+*.pptx
+*.ppt
+
+# Runtime database journals
+*.db-journal

@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block title %}File Virus Scanner — WebSecScanner{% endblock %}
+
+{% block content %}
+<div class="file-scanner-page">
+    <div class="hero" style="text-align: center; padding: 4rem 0 2rem; position: relative;">
+        <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 400px; height: 400px; background: radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, transparent 60%); z-index: -1; pointer-events: none; border-radius: 50%;"></div>
+        <h1 class="hero-title" style="font-size: 3rem; font-weight: 800; margin-bottom: 1rem; line-height: 1.1;">
+            <span class="gradient-text" style="background: linear-gradient(135deg, #8b5cf6, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">File Virus</span> Scanner
+        </h1>
+        <p class="hero-subtitle" style="max-width: 700px; margin: 0 auto; font-size: 1.15rem; color: var(--text-secondary); line-height: 1.6;">
+            Drag & drop files to scan them for malware, obfuscated code, 
+            suspicious patterns, and embedded threats.
+        </p>
+    </div>
+
+    <!-- Drop Zone -->
+    <div class="card drop-zone-card" id="dropZoneCard">
+        <div class="drop-zone" id="dropZone">
+            <div class="drop-zone-content">
+                <div class="drop-icon" id="dropIcon">
+                    <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+                        <rect x="8" y="16" width="64" height="52" rx="8" 
+                              stroke="currentColor" stroke-width="2" stroke-dasharray="6 4" opacity="0.4"/>
+                        <path d="M40 28L40 52" stroke="currentColor" stroke-width="2.5" 
+                              stroke-linecap="round"/>
+                        <path d="M30 38L40 28L50 38" stroke="currentColor" stroke-width="2.5" 
+                              stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <h3 class="drop-title">Drop files here to scan</h3>
+                <p class="drop-subtitle">or click to browse files</p>
+                <p class="drop-info">Supports all file types • Max 100MB per file</p>
+            </div>
+            <input type="file" id="fileInput" multiple hidden>
+        </div>
+    </div>
+
+    <!-- Scan Configuration & Pending Files -->
+    <div class="card scan-config-card" id="scanConfigCard" style="display:none; margin-top: 1.5rem;">
+        <div class="card-header">
+            <h2> Scan Configuration</h2>
+        </div>
+        
+        <div class="pending-files-list" id="pendingFilesList" style="margin-bottom: 1.5rem; max-height: 200px; overflow-y: auto; background: var(--bg-tertiary); padding: 1rem; border-radius: 8px;">
+            <!-- Pending files will be listed here -->
+        </div>
+
+        <form id="fileScanForm">
+            <div class="form-row toggles" style="margin-bottom: 1.5rem; justify-content: flex-start; gap: 2rem;">
+                <label class="toggle-label">
+                    <input type="checkbox" id="enable_ml" name="enable_ml" checked>
+                    <span class="toggle-switch"></span>
+                    <span>ML Analysis</span>
+                </label>
+                <label class="toggle-label">
+                    <input type="checkbox" id="enable_vt" name="enable_vt">
+                    <span class="toggle-switch"></span>
+                    <span>Use VirusTotal API</span>
+                </label>
+            </div>
+            <button type="submit" class="btn btn-primary btn-lg" id="startScanBtn" style="width: 100%;">
+                <span class="btn-icon"></span>
+                Scan Files
+            </button>
+        </form>
+    </div>
+
+    <!-- Scanning Progress / Results are now handled by separate pages -->
+
+    <!-- Scan History -->
+    {% if scan_history %}
+    <section class="history-section" style="margin-top: 2rem;">
+        <h2 class="section-title"> Recent File Scans</h2>
+        <div class="file-history-list">
+            {% for scan in scan_history|reverse %}
+            <div class="card file-history-item {% if scan.threat_level == 'Malicious' %}threat-malicious{% elif scan.threat_level == 'Suspicious' %}threat-suspicious{% else %}threat-clean{% endif %}">
+                <div class="fh-header">
+                    <span class="fh-icon">
+                        {% if scan.threat_level == 'Malicious' %}{% elif scan.threat_level == 'Suspicious' %}🟡{% else %}{% endif %}
+                    </span>
+                    <span class="fh-name">{{ scan.filename }}</span>
+                    <span class="fh-badge fh-{{ scan.threat_level|lower }}">{{ scan.threat_level }}</span>
+                </div>
+                <div class="fh-meta">
+                    <span>{{ scan.file_size_human }}</span>
+                    <span>{{ scan.file_type }}</span>
+                    <span>{{ scan.threat_count }} threat(s)</span>
+                    <span>{{ scan.scan_time }}s</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const scanConfigCard = document.getElementById('scanConfigCard');
+const pendingFilesList = document.getElementById('pendingFilesList');
+const fileScanForm = document.getElementById('fileScanForm');
+const startScanBtn = document.getElementById('startScanBtn');
+
+let selectedFiles = [];
+
+// Drag & Drop handlers
+['dragenter', 'dragover'].forEach(event => {
+    dropZone.addEventListener(event, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.add('drag-over');
+    });
+});
+
+['dragleave', 'drop'].forEach(event => {
+    dropZone.addEventListener(event, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.remove('drag-over');
+    });
+});
+
+dropZone.addEventListener('drop', (e) => {
+    const files = e.dataTransfer.files;
+    if (files.length > 0) addFilesToQueue(files);
+});
+
+dropZone.addEventListener('click', () => fileInput.click());
+
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) addFilesToQueue(e.target.files);
+});
+
+function addFilesToQueue(files) {
+    const newFiles = Array.from(files);
+    selectedFiles = selectedFiles.concat(newFiles);
+    
+    // Update UI
+    scanConfigCard.style.display = 'block';
+    
+    // Clear and rebuild pending files list
+    pendingFilesList.innerHTML = '';
+    selectedFiles.forEach((file, index) => {
+        pendingFilesList.innerHTML += `
+            <div style="display: flex; justify-content: space-between; padding: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                <span> ${escapeHtml(file.name)}</span>
+                <span style="color: var(--text-secondary);">${humanSize(file.size)}</span>
+            </div>
+        `;
+    });
+}
+
+fileScanForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (selectedFiles.length === 0) return;
+    
+    // Disable inputs
+    startScanBtn.disabled = true;
+    startScanBtn.innerHTML = '<span class="spinner" style="margin-right: 8px;"></span> Starting...';
+    document.getElementById('enable_ml').disabled = true;
+    document.getElementById('enable_vt').disabled = true;
+    
+    const formData = new FormData();
+    selectedFiles.forEach(file => formData.append('file', file));
+    formData.append('enable_ml', document.getElementById('enable_ml').checked);
+    formData.append('enable_vt', document.getElementById('enable_vt').checked);
+    
+    try {
+        const resp = await fetch('/start-file-scan', { method: 'POST', body: formData });
+        const data = await resp.json();
+        if (data.error) {
+            alert(data.error);
+            startScanBtn.disabled = false;
+            startScanBtn.innerHTML = '<span class="btn-icon"></span> Scan Files';
+            document.getElementById('enable_ml').disabled = false;
+            document.getElementById('enable_vt').disabled = false;
+        } else {
+            window.location.href = data.redirect;
+        }
+    } catch(err) {
+        alert('Failed to start scan: ' + err.message);
+        startScanBtn.disabled = false;
+        startScanBtn.innerHTML = '<span class="btn-icon"></span> Scan Files';
+        document.getElementById('enable_ml').disabled = false;
+        document.getElementById('enable_vt').disabled = false;
+    }
+});
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function humanSize(bytes) {
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let i = 0;
+    while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024; i++; }
+    return bytes.toFixed(1) + ' ' + units[i];
+}
+</script>
+{% endblock %}

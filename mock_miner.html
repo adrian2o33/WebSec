@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head><title>Mock Crypto Miner</title></head>
+<body>
+    <h1>Testing Dynamic Malware Verification</h1>
+    <script>
+        console.log("Attempting to connect to mining pool...");
+        // Simulate a mining connection
+        try {
+            const ws = new WebSocket("wss://supportxmr.com/");
+            ws.onopen = () => ws.send('{"method": "login", "params": {"login": "wallet_address", "pass": "x"}}');
+        } catch (e) {
+            console.error(e);
+        }
+    </script>
+</body>
+</html>

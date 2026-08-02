@@ -1,0 +1,727 @@
+{% extends "base.html" %}
+{% block title %}Results — {{ result.target_url }}{% endblock %}
+
+{% block content %}
+<div class="results-page">
+    <!-- Summary Header & Grade -->
+    <div class="results-header" style="text-align: center; padding: 2rem 0; margin-bottom: 2rem;">
+        <h1 class="gradient-text" style="font-size: 3rem; font-weight: 900; margin-bottom: 0.5rem; letter-spacing: -0.02em;">Scan Results</h1>
+        <p class="target-url" style="font-size: 1.25rem; color: var(--text-secondary);">{{ result.target_url }}</p>
+    </div>
+
+    {% set grade_color = '#6b7280' %}
+    {% if result.security_grade in ['A+', 'A-'] %}{% set grade_color = '#10b981' %}{% endif %}
+    {% if result.security_grade in ['B+', 'B'] %}{% set grade_color = '#3b82f6' %}{% endif %}
+    {% if result.security_grade == 'C' %}{% set grade_color = '#f59e0b' %}{% endif %}
+    {% if result.security_grade == 'D' %}{% set grade_color = '#f97316' %}{% endif %}
+    {% if result.security_grade == 'F' %}{% set grade_color = '#ef4444' %}{% endif %}
+
+    <div class="card grade-card" style="display: flex; align-items: center; gap: 2rem; border-left: 8px solid {{ grade_color }}; margin-bottom: 2rem;">
+        <div class="grade-circle" style="font-size: 5rem; font-weight: 900; line-height: 1; color: {{ grade_color }}; text-shadow: 0 0 20px {{ grade_color }}40;">
+            {{ result.security_grade }}
+        </div>
+        <div class="grade-details">
+            <h2 style="margin-bottom: 0.5rem; font-size: 1.5rem;">Security Grade: {{ result.security_grade }}</h2>
+            <p style="color: var(--text-secondary); font-size: 1.1rem; line-height: 1.5;"><strong>Bottom Line:</strong> {{ result.bottom_line }}</p>
+        </div>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="overview-grid">
+        <div class="card stat-card">
+            <div class="stat-icon"></div>
+            <div class="stat-value">{{ result.pages_crawled }}</div>
+            <div class="stat-label">Pages Crawled</div>
+        </div>
+        <div class="card stat-card">
+            <div class="stat-icon"></div>
+            <div class="stat-value">{{ result.forms_found }}</div>
+            <div class="stat-label">Forms Found</div>
+        </div>
+        <div class="card stat-card">
+            <div class="stat-icon"></div>
+            <div class="stat-value">{{ result.total_requests }}</div>
+            <div class="stat-label">Requests Sent</div>
+        </div>
+        <div class="card stat-card">
+            <div class="stat-icon"></div>
+            <div class="stat-value">{{ "%.1f"|format(result.scan_duration_seconds) }}s</div>
+            <div class="stat-label">Duration</div>
+        </div>
+        <div class="card stat-card">
+            <div class="stat-icon"></div>
+            <div class="stat-value">{{ result.findings|length }}</div>
+            <div class="stat-label">Total Findings</div>
+        </div>
+    </div>
+
+    <!-- Severity Summary -->
+    <div class="card severity-card">
+        <h2>Severity Distribution</h2>
+        <div class="severity-bars">
+            {% set summary = result.severity_summary %}
+            {% set total = result.findings|length %}
+            {% for level, count in [('Critical', summary.get('Critical', 0)), ('High', summary.get('High', 0)),
+            ('Medium', summary.get('Medium', 0)), ('Low', summary.get('Low', 0)), ('Info', summary.get('Info', 0))] %}
+            {% set pct = (count / total * 100) if total > 0 else 0 %}
+            <div class="severity-row">
+                <span class="severity-label {{ level|lower }}">{{ level }}</span>
+                <div class="severity-bar-track">
+                    <div class="severity-bar-fill {{ level|lower }}" data-width="{{ pct }}"></div>
+                </div>
+                <span class="severity-count">{{ count }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Download Reports -->
+    <div class="card download-card">
+        <h2> Download Report</h2>
+        <div class="download-buttons">
+            {% if reports.get('html') %}
+            <a href="/download/{{ scan_id }}/html" class="btn btn-download">
+                 scan_{{ domain }}.html
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Filter Controls -->
+    <div class="card filter-card">
+        <h2> Findings ({{ findings|length }})</h2>
+        <div class="filter-controls">
+            <div class="filter-group">
+                <label>Severity:</label>
+                <select id="filterSeverity" onchange="filterFindings()">
+                    <option value="all">All</option>
+                    <option value="Critical">Critical</option>
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
+                    <option value="Info">Info</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Type:</label>
+                <select id="filterType" onchange="filterFindings()">
+                    <option value="all">All</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Search:</label>
+                <input type="text" id="filterSearch" placeholder="Search findings..." oninput="filterFindings()">
+            </div>
+        </div>
+    </div>
+
+    <!-- Findings List -->
+    <div class="findings-list" id="findingsList">
+        {% for f in findings %}
+        <div class="card finding-card" data-severity="{{ f.severity }}" data-type="{{ f.vuln_type }}"
+            data-searchable="{{ f.url }} {{ f.parameter }} {{ f.vuln_type }} {{ f.description }}">
+            <div class="finding-header">
+                <span class="badge badge-{{ f.severity|lower }}">{{ f.severity }}</span>
+                <span class="finding-type">{{ f.vuln_type }}</span>
+                {% if f.ml_severity %}
+                <span class="ml-badge" title="ML-predicted severity"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:-3px; margin-right:4px;"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path><line x1="8" y1="16" x2="8" y2="16"></line><line x1="16" y1="16" x2="16" y2="16"></line></svg>{{ f.ml_severity }}</span>
+                {% endif %}
+                {% if f.ml_is_true_positive is not none %}
+                {% set tp_pct = (f.ml_is_true_positive * 100)|round|int %}
+                <span class="tp-score" title="True positive probability">
+                    TP: {{ tp_pct }}%
+                </span>
+                {% endif %}
+                {% set conf_pct = (f.confidence * 100)|round|int %}
+                <span class="confidence" title="Detection confidence">
+                    {{ conf_pct }}% conf.
+                </span>
+            </div>
+
+            <!-- Vulnerability Description (what it is + what attacker can do) -->
+            <div class="vuln-description" id="vulnDesc_{{ loop.index }}"></div>
+
+            <div class="finding-body">
+                <div class="finding-detail">
+                    <span class="detail-label">URL</span>
+                    <code>{{ f.url }}</code>
+                </div>
+                {% if f.parameter %}
+                <div class="finding-detail">
+                    <span class="detail-label">Parameter</span>
+                    <code>{{ f.parameter }}</code>
+                </div>
+                {% endif %}
+                {% if f.payload %}
+                <div class="finding-detail">
+                    <span class="detail-label">Payload</span>
+                    <code class="payload">{{ f.payload }}</code>
+                </div>
+                {% endif %}
+                <div class="finding-detail">
+                    <span class="detail-label">Description</span>
+                    <p>{{ f.description }}</p>
+                </div>
+                <div class="finding-evidence">
+                    <span class="detail-label">Evidence</span>
+                    <pre>{{ f.evidence[:500] }}</pre>
+                </div>
+            </div>
+
+            <!-- Premium "How to Fix" Button -->
+            <div class="fix-button-container">
+                <button class="btn btn-fix" onclick="showFix('{{ f.vuln_type }}', this)"
+                    data-vuln-type="{{ f.vuln_type }}">
+                    <span class="fix-icon"></span>
+                    <span class="fix-text">How to Fix</span>
+                    <span class="fix-lock" id="fixLock_{{ loop.index }}"></span>
+                </button>
+                <div class="fix-content" style="display:none;"></div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if not findings %}
+    <div class="card empty-card">
+        <div class="empty-icon"></div>
+        <h3>No Vulnerabilities Found</h3>
+        <p>The target appears to be secure against the tested attack vectors.</p>
+    </div>
+    {% endif %}
+
+    <div class="actions-bottom">
+        <a href="/" class="btn btn-primary btn-lg"> New Scan</a>
+    </div>
+</div>
+
+<!-- Premium Upgrade Modal -->
+<div class="modal-overlay" id="premiumModal" style="display:none;">
+    <div class="modal-card card">
+        <div class="modal-header">
+            <h2> Premium Feature</h2>
+            <button class="modal-close" onclick="closePremiumModal()"></button>
+        </div>
+        <div class="modal-body">
+            <p>Detailed remediation guides with step-by-step fix instructions and code examples are available on the
+                <strong>Premium plan</strong>.</p>
+            <div class="modal-features">
+                <div class="modal-feature"> Step-by-step remediation for every vulnerability type</div>
+                <div class="modal-feature"> Code examples in multiple languages</div>
+                <div class="modal-feature"> Framework-specific fix recommendations</div>
+                <div class="modal-feature"> Priority support</div>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <a href="/pricing" class="btn btn-primary btn-lg"> Upgrade to Premium</a>
+            <button class="btn btn-secondary" onclick="closePremiumModal()">Maybe Later</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Vulnerability knowledge base — short description + attacker impact + plain-English scenario
+    const VULN_INFO = {
+        "Reflected XSS": {
+            description: "Reflected Cross-Site Scripting occurs when user-supplied input is echoed back in the HTML response without proper sanitization.",
+            impact: "An attacker can inject malicious JavaScript that executes in the victim's browser, enabling cookie theft, session hijacking, phishing, and account takeover.",
+            icon: "",
+            scenario: "Reflected XSS occurs when a web application immediately returns untrusted user input without sanitizing it first. For example, if an attacker tricks a user into clicking a specially crafted malicious link, the application will reflect the malicious script back to the user's browser, where it executes and steals their session cookies."
+        },
+        "Stored XSS": {
+            description: "Stored Cross-Site Scripting occurs when malicious input is permanently saved on the server and served to other users.",
+            impact: "An attacker can compromise every user who views the affected page, steal credentials, redirect users to malicious sites, or deface the application.",
+            icon: "",
+            scenario: "Stored XSS occurs when an application saves malicious input to a database and later displays it to other users. For example, an attacker could post a comment containing a hidden malicious script. Whenever other users view that comment section, their browsers will silently execute the script, potentially compromising their accounts."
+        },
+        "SQL Injection": {
+            description: "SQL Injection occurs when user input is incorporated directly into database queries without parameterization.",
+            impact: "An attacker can read, modify, or delete all database records, bypass authentication, escalate privileges, and potentially execute OS commands on the database server.",
+            icon: "",
+            scenario: "SQL Injection happens when a system blindly trusts user input and inserts it directly into a database query. For example, an attacker can enter a mathematical trick like 'OR 1=1' into a login form. Because the database interprets this as a command rather than plain text, it alters the query logic and can bypass authentication entirely."
+        },
+        "Path Traversal": {
+            description: "Path Traversal (Directory Traversal) allows an attacker to access files outside the intended directory by manipulating file path references.",
+            impact: "An attacker can read sensitive server files like /etc/passwd, configuration files with database credentials, source code, and private keys.",
+            icon: "",
+            scenario: "Path Traversal vulnerabilities occur when an application fails to validate the requested file paths. By entering navigation sequences like '../' into a file download request, an attacker can break out of the intended web directory and read sensitive backend files, such as server configuration files or source code."
+        },
+        "Command Injection": {
+            description: "OS Command Injection occurs when an application passes unsafe user-supplied data to a system shell.",
+            impact: "An attacker can execute arbitrary OS commands, completely compromising the server and its underlying network.",
+            icon: "",
+            scenario: "OS Command Injection occurs when an application passes unsafe user input directly to the server's command line. For example, if an app lets you ping an IP address, an attacker can append a semicolon followed by a secondary command like 'whoami'. The server will run the ping, and then immediately run the hidden command, giving the attacker control over the system."
+        },
+        "CORS Misconfiguration": {
+            description: "Cross-Origin Resource Sharing (CORS) is configured to trust arbitrary origins, allowing malicious sites to read sensitive data.",
+            impact: "An attacker can create a malicious website that forces the victim's browser to silently fetch and exfiltrate private API data.",
+            icon: "",
+            scenario: "Cross-Origin Resource Sharing (CORS) is a security mechanism that controls which external websites can interact with an API. If configured too permissively to trust any domain (using a wildcard '*'), an attacker can build a malicious website that forces the victim's browser to silently extract sensitive private data from the API."
+        },
+        "Cross-Site Request Forgery (CSRF)": {
+            description: "The application allows state-changing requests to be executed on behalf of an authenticated user without verifying the intent.",
+            impact: "An attacker can trick a victim into clicking a link that silently performs unauthorized actions (like transferring funds or changing passwords) on the victim's behalf.",
+            icon: "",
+            scenario: "CSRF relies on the fact that browsers automatically attach session cookies to requests. If an application lacks anti-CSRF tokens, an attacker can trick an authenticated user into clicking a malicious link. The link will silently force the user's browser to submit a state-changing action, like transferring funds or changing a password, on the victim's behalf."
+        },
+        "Server-Side Request Forgery (SSRF)": {
+            description: "The server accepts user-supplied URLs and fetches them without validation, allowing access to internal services or cloud metadata.",
+            impact: "An attacker can bypass firewalls to scan internal networks, read local files, or extract sensitive cloud metadata credentials (e.g., AWS IAM keys).",
+            icon: "",
+            scenario: "SSRF occurs when a server fetches data from a URL provided by the user without checking it. An attacker can provide internal addresses that are normally inaccessible, forcing the server to act as a proxy and access sensitive internal resources or cloud infrastructure."
+        },
+        "Open Redirect": {
+            description: "An Open Redirect occurs when an application takes a user-supplied URL and redirects them to it without any validation.",
+            impact: "Attackers can construct a trusted-looking URL that redirects victims to a malicious site, facilitating highly convincing phishing attacks or malware delivery.",
+            icon: "",
+            scenario: "Open Redirect occurs when a website takes a redirect destination from a user without verifying it. An attacker can create a link that appears to go to a legitimate site but actually bounces the user to a phishing or malicious page, making the trap look very convincing."
+        },
+        "Directory Listing": {
+            description: "The web server is configured to automatically display a listing of all files and folders when a directory without an index file is requested.",
+            impact: "Attackers can easily browse the directory structure, potentially discovering backup files, source code, sensitive documents, and hidden endpoints.",
+            icon: "",
+            scenario: "Directory Listing happens when a web server is set to display all files in a folder if no start page exists. This effectively gives an attacker a map of the server's file system, making it easy to find sensitive documents, configuration files, or hidden backups."
+        },
+        "Missing HTTPS": {
+            description: "The application does not enforce HTTPS, meaning traffic between the user and server is transmitted in plaintext.",
+            impact: "An attacker on the same network can intercept all traffic (man-in-the-middle), capturing login credentials, session tokens, and sensitive data.",
+            icon: "",
+            scenario: "When a site is served over HTTP instead of HTTPS, data travels as plain text. Anyone on the same network—like public Wi-Fi—can monitor the connection and intercept sensitive information like passwords or session tokens as they are sent."
+        },
+        "Insecure Certificate": {
+            description: "The SSL/TLS certificate is expired, self-signed, or uses a weak cipher suite.",
+            impact: "An attacker can perform man-in-the-middle attacks. Users may ignore browser warnings, training them to accept insecure connections.",
+            icon: "",
+            scenario: "An insecure certificate means the website's digital proof of identity is invalid or outdated. This prevents the browser from establishing a secure, verified connection, which allows attackers to potentially impersonate the site and intercept the traffic."
+        },
+        "Missing Security Header": {
+            description: "One or more important HTTP security response headers are missing or misconfigured.",
+            impact: "Without proper headers, the application is vulnerable to clickjacking (X-Frame-Options), MIME sniffing (X-Content-Type-Options), XSS (CSP), and protocol downgrade attacks (HSTS).",
+            icon: "🛡️",
+            scenario: "Security headers are instructions that tell the browser how to behave when loading your page. When these are missing, the browser lacks the guardrails needed to prevent certain attacks, such as allowing the site to be loaded in hidden iframes or failing to force secure connections."
+        },
+        "Insecure Cookie": {
+            description: "Cookies are missing important security flags such as HttpOnly, Secure, or SameSite.",
+            impact: "An attacker can steal cookies via XSS (missing HttpOnly), intercept them over HTTP (missing Secure), or exploit CSRF vulnerabilities (missing SameSite).",
+            icon: "",
+            scenario: "Insecure cookie flags allow browser data to be accessed or sent in ways that violate security best practices. Without these flags, cookies containing sensitive session info might be exposed to scripts or transmitted over unencrypted connections, leaving the user account vulnerable."
+        },
+        "Information Disclosure": {
+            description: "The server exposes sensitive information such as software versions, internal paths, or technology stack details in response headers or error pages.",
+            impact: "An attacker can use disclosed version numbers to find known CVEs and craft targeted exploits against the specific software in use.",
+            icon: "",
+            scenario: "Information disclosure happens when a server leaks technical details, such as software versions or internal file paths, through error messages or headers. These details act as a reconnaissance tool for attackers, helping them identify specific vulnerabilities in the server's tech stack."
+        },
+        "Malicious Script Detected": {
+            description: "A potentially malicious JavaScript pattern was detected on the page, such as obfuscated eval() calls or encoded payloads.",
+            impact: "An attacker could be using the script to steal credentials, redirect users, mine cryptocurrency, or serve drive-by downloads.",
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:-3px; margin-right:4px;"><circle cx="12" cy="12" r="8"></circle><line x1="12" y1="2" x2="12" y2="4"></line><line x1="12" y1="20" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"></line><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="4" y2="12"></line><line x1="20" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"></line><line x1="17.66" y1="4.93" x2="19.07" y2="6.34"></line></svg>',
+            scenario: "Malicious scripts are unauthorized code running on a website to perform harmful actions. This could range from stealing user data to showing intrusive ads or redirecting users to scam websites without their permission."
+        },
+        "Suspicious Iframe": {
+            description: "A hidden or suspiciously configured iframe was detected, possibly loading external malicious content.",
+            impact: "An attacker can use hidden iframes for clickjacking, credential phishing, malware delivery, or tracking users without consent.",
+            icon: "",
+            scenario: "An iframe is a window within a webpage that displays another page. A suspicious iframe is one that is hidden or points to a dangerous site, often used by attackers to trick users into clicking links or to download malware in the background."
+        },
+        "Malicious Redirect": {
+            description: "The page performs an automatic redirect to a potentially malicious external domain.",
+            impact: "Users may be redirected to phishing sites, malware download pages, or scam/exploit kit landing pages.",
+            icon: "↪",
+            scenario: "A malicious redirect forces a user away from your site to an attacker-controlled page. This is commonly used to trick users into entering credentials on a fake login page or to start an automated download of malicious software."
+        },
+        "Malware Download Link": {
+            description: "A link to a potentially malicious file download (e.g., .exe, .bat, .ps1) was found on the page.",
+            impact: "Users clicking the link may download and execute malware, leading to system compromise, ransomware infection, or data theft.",
+            icon: "",
+            scenario: "A malware download link points to an executable file designed to cause harm. If a user clicks this link, their computer may be infected with viruses, ransomware, or spyware, often without them realizing the file is dangerous."
+        },
+        "Obfuscated Malicious Code": {
+            description: "Heavily obfuscated JavaScript code was detected, a common technique used by malware to evade detection.",
+            impact: "The obfuscated code may perform credential theft, cryptomining, keylogging, or serve as a dropper for additional malware payloads.",
+            icon: "",
+            scenario: "Obfuscation is the process of scrambling code to hide its true intent from security scanners and developers. When detected on a website, it is a strong indicator that the site has been compromised and is running malicious commands behind a layer of complexity."
+        },
+        "Cryptocurrency Miner": {
+            description: "JavaScript-based cryptocurrency mining code was detected on the page.",
+            impact: "The miner abuses visitors' CPU/GPU resources to mine cryptocurrency for the attacker, degrading performance and increasing electricity costs.",
+            icon: "",
+            scenario: "A web crypto miner uses the computing power of your visitors to mine digital currency without their permission. This causes the visitor's device to slow down, overheat, and consume more battery life, all to make money for the attacker."
+        },
+        "Phishing Indicator": {
+            description: "The page contains patterns commonly associated with phishing attacks, such as fake login forms mimicking popular services.",
+            impact: "Users may unknowingly submit their real credentials to the attacker, leading to account compromise and identity theft.",
+            icon: "",
+            scenario: "Phishing indicators are signs that a page is trying to impersonate a trusted service. Attackers create fake login forms that look identical to those of banks or email providers to harvest the real credentials of users who are tricked into entering them."
+        },
+        "Malware Infection": {
+            description: "A known malware signature (e.g. via YARA) or malicious domain (via VirusTotal) was detected associated with the target.",
+            impact: "The server or domain is actively distributing malware, which compromises visitors and blacklists the site.",
+            icon: "",
+            scenario: "A malware infection means the site has been flagged by security systems as a distributor of harmful software. This is a severe issue where the server itself or the files hosted on it are actively harming visitors and will likely lead to the site being blocked by major browsers."
+        },
+        "XML External Entity (XXE) Injection": {
+            description: "XML External Entity (XXE) Injection occurs when poorly configured XML parsers process external entities.",
+            impact: "An attacker can read local files on the server (like /etc/passwd), perform Server-Side Request Forgery (SSRF), or cause Denial of Service.",
+            icon: "",
+            scenario: "XXE injection exploits XML parsers that allow the loading of external files. An attacker can craft an XML file that asks the server to include a sensitive local file, such as password logs, and have it returned to them in the application response."
+        },
+        "Invalid Input / Fuzzing Exception": {
+            description: "The application failed to gracefully handle unexpected or massive input, resulting in an unhandled exception or crash.",
+            impact: "An attacker can glean sensitive information from stack traces or cause Denial of Service (DoS) by crashing the application thread.",
+            icon: "",
+            scenario: "Input-related exceptions occur when a website doesn't know how to handle weird or malformed data. Instead of showing a nice error, the server crashes and reveals technical error logs, giving attackers a glimpse into the internal software structure and potential weaknesses."
+        },
+        "Broken Access Control (IDOR)": {
+            description: "Insecure Direct Object Reference (IDOR) occurs when an application provides direct access to objects based on user-supplied input without authorization checks.",
+            impact: "A low-privileged user can view, modify, or delete data belonging to other users or administrators.",
+            icon: "",
+            scenario: "IDOR occurs when a website relies on predictable inputs, like an ID number in a URL, to show private data. Because the site fails to check if the current user owns that data, an attacker can simply change the ID number to view someone else's sensitive information."
+        },
+        "Missing Rate Limiting": {
+            description: "The server does not enforce a limit on the number of requests a user can make in a given timeframe.",
+            impact: "An attacker can launch brute-force attacks against login forms, scrape data rapidly, or cause Application-Layer Denial of Service (DoS).",
+            icon: "",
+            scenario: "Missing Rate Limiting means there are no restrictions on how often a single user can talk to your server. Without this, an attacker can send thousands of requests per second to brute-force passwords, scrape all your content, or simply overwhelm the server until it crashes."
+        }
+    };
+
+    // Premium remediation guides
+    const REMEDIATION_GUIDES = {
+        "Reflected XSS": `<h4> How to Fix Reflected XSS</h4>
+<ol>
+<li><strong>Output Encoding</strong> — Always HTML-encode user input before rendering it in the page. Use context-aware encoding (HTML, JavaScript, URL, CSS).</li>
+<li><strong>Content Security Policy</strong> — Add a strict CSP header:<br><code>Content-Security-Policy: default-src 'self'; script-src 'self'</code></li>
+<li><strong>Use Framework Auto-Escaping</strong> — Use template engines that auto-escape by default (Jinja2, React JSX, Angular).</li>
+<li><strong>Input Validation</strong> — Validate and sanitize all user input on the server side. Use allowlists for expected input formats.</li>
+<li><strong>HttpOnly Cookies</strong> — Set the HttpOnly flag on session cookies to prevent JavaScript access.</li>
+</ol>`,
+        "Stored XSS": `<h4> How to Fix Stored XSS</h4>
+<ol>
+<li><strong>Sanitize on Input</strong> — Use a library like DOMPurify or Bleach to strip dangerous HTML before storing data.</li>
+<li><strong>Encode on Output</strong> — Always encode stored data when rendering in HTML context.</li>
+<li><strong>CSP Headers</strong> — Implement strict Content-Security-Policy to block inline scripts.</li>
+<li><strong>Input Validation</strong> — Reject or strip HTML tags from inputs that don't need them.</li>
+</ol>`,
+        "SQL Injection": `<h4> How to Fix SQL Injection</h4>
+<ol>
+<li><strong>Parameterized Queries</strong> — Always use prepared statements:<br><code>cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))</code></li>
+<li><strong>ORM Usage</strong> — Use an ORM (SQLAlchemy, Django ORM, Sequelize) which auto-parameterizes queries.</li>
+<li><strong>Input Validation</strong> — Validate input types, lengths, and patterns. Reject unexpected characters.</li>
+<li><strong>Least Privilege</strong> — Database accounts should have minimal permissions. Never use root/sa accounts.</li>
+<li><strong>WAF Rules</strong> — Deploy a Web Application Firewall with SQLi detection rules as defense-in-depth.</li>
+</ol>`,
+        "Path Traversal": `<h4> How to Fix Path Traversal</h4>
+<ol>
+<li><strong>Canonicalize Paths</strong> — Resolve the full path and verify it stays within the allowed directory:<br><code>os.path.realpath(path).startswith(ALLOWED_DIR)</code></li>
+<li><strong>Allowlist Approach</strong> — Map user input to an index of allowed files rather than using the input as a file path.</li>
+<li><strong>Remove Path Characters</strong> — Strip or reject input containing <code>..</code>, <code>/</code>, <code>\\</code>, and null bytes.</li>
+<li><strong>Chroot/Sandboxing</strong> — Run the application in a sandboxed environment with limited filesystem access.</li>
+</ol>`,
+        "Open Redirect": `<h4> How to Fix Open Redirects</h4>
+<ol>
+<li><strong>Allowlist Validation</strong> — Validate the redirect target against a strict allowlist of permitted domains or relative paths.</li>
+<li><strong>Avoid User Input</strong> — If possible, use server-side session data or mapped IDs instead of full URLs to dictate redirects.</li>
+<li><strong>Force Relative URLs</strong> — If the redirect must be local, strip any domain/scheme and force a leading slash <code>/</code>.</li>
+</ol>`,
+        "Directory Listing": `<h4> How to Fix Directory Listing</h4>
+<ol>
+<li><strong>Disable Autoindex</strong> — Turn off the directory listing feature in your web server.
+    <br>• <em>Apache</em>: Remove <code>Indexes</code> from <code>Options</code> in httpd.conf or .htaccess.
+    <br>• <em>Nginx</em>: Set <code>autoindex off;</code> in nginx.conf.
+    <br>• <em>IIS</em>: Disable "Directory Browsing" in the IIS Manager.</li>
+<li><strong>Add Default Index Files</strong> — Place an empty <code>index.html</code> in directories to prevent listing as a fallback.</li>
+</ol>`,
+        "Command Injection": `<h4> How to Fix Command Injection</h4>
+<ol>
+<li><strong>Avoid Shell Commands</strong> — Use language APIs instead of shell commands. E.g., use <code>os.listdir()</code> instead of <code>os.system("ls")</code>.</li>
+<li><strong>Use subprocess Safely</strong> — Pass arguments as a list, not a string:<br><code>subprocess.run(["ping", "-c", "1", host], shell=False)</code></li>
+<li><strong>Input Validation</strong> — Allowlist expected characters. Reject <code>; | & \` $ ( )</code> and other shell metacharacters.</li>
+<li><strong>Least Privilege</strong> — Run the application with minimal OS permissions.</li>
+</ol>`,
+        "Missing HTTPS": `<h4> How to Fix Missing HTTPS</h4>
+<ol>
+<li><strong>Get an SSL Certificate</strong> — Use Let's Encrypt (free) or a commercial CA.</li>
+<li><strong>Force HTTPS Redirect</strong> — Redirect all HTTP traffic to HTTPS (301 redirect).</li>
+<li><strong>HSTS Header</strong> — Add <code>Strict-Transport-Security: max-age=31536000; includeSubDomains</code></li>
+<li><strong>Update Internal Links</strong> — Ensure all resources use HTTPS URLs.</li>
+</ol>`,
+        "Insecure Certificate": `<h4> How to Fix Insecure Certificate</h4>
+<ol>
+<li><strong>Renew/Replace Certificate</strong> — Ensure the certificate is valid and not expired.</li>
+<li><strong>Use Strong Ciphers</strong> — Disable TLS 1.0/1.1, use TLS 1.2+ with strong cipher suites.</li>
+<li><strong>Chain of Trust</strong> — Ensure the full certificate chain is served correctly.</li>
+<li><strong>Automated Renewal</strong> — Use certbot or similar for automatic certificate renewal.</li>
+</ol>`,
+        "Missing Security Header": `<h4> How to Fix Missing Security Headers</h4>
+<ol>
+<li><strong>HSTS</strong> — <code>Strict-Transport-Security: max-age=31536000; includeSubDomains</code></li>
+<li><strong>CSP</strong> — <code>Content-Security-Policy: default-src 'self'; script-src 'self'</code></li>
+<li><strong>X-Frame-Options</strong> — <code>X-Frame-Options: DENY</code></li>
+<li><strong>X-Content-Type-Options</strong> — <code>X-Content-Type-Options: nosniff</code></li>
+<li><strong>Referrer-Policy</strong> — <code>Referrer-Policy: strict-origin-when-cross-origin</code></li>
+<li><strong>Permissions-Policy</strong> — <code>Permissions-Policy: camera=(), microphone=(), geolocation=()</code></li>
+</ol>`,
+        "Insecure Cookie": `<h4> How to Fix Insecure Cookies</h4>
+<ol>
+<li><strong>HttpOnly</strong> — Prevents JavaScript from accessing the cookie: <code>Set-Cookie: session=abc; HttpOnly</code></li>
+<li><strong>Secure</strong> — Ensures cookie is only sent over HTTPS: <code>Set-Cookie: session=abc; Secure</code></li>
+<li><strong>SameSite</strong> — Prevents CSRF by controlling cross-site sending: <code>Set-Cookie: session=abc; SameSite=Lax</code></li>
+<li><strong>Short Expiry</strong> — Use session cookies or short max-age for sensitive tokens.</li>
+</ol>`,
+        "Information Disclosure": `<h4> How to Fix Information Disclosure</h4>
+<ol>
+<li><strong>Remove Version Headers</strong> — Configure your web server to hide <code>Server</code> and <code>X-Powered-By</code> headers.</li>
+<li><strong>Custom Error Pages</strong> — Replace default error pages with generic messages that don't expose stack traces.</li>
+<li><strong>Disable Directory Listing</strong> — Prevent web server from listing directory contents.</li>
+<li><strong>Review robots.txt</strong> — Don't list sensitive paths in robots.txt.</li>
+</ol>`,
+        "Malicious Script Detected": `<h4> How to Handle Malicious Scripts</h4>
+<ol>
+<li><strong>Remove the Script</strong> — Identify and remove the injected malicious code from your source files or database.</li>
+<li><strong>Check for Backdoors</strong> — Scan your server for webshells and unauthorized modifications.</li>
+<li><strong>Update Software</strong> — Patch all CMS, plugins, and dependencies to latest versions.</li>
+<li><strong>Implement CSP</strong> — Content-Security-Policy headers can block unauthorized script execution.</li>
+</ol>`,
+        "Suspicious Iframe": `<h4> How to Handle Suspicious Iframes</h4>
+<ol>
+<li><strong>Remove Unknown Iframes</strong> — Delete any iframes you didn't intentionally add.</li>
+<li><strong>X-Frame-Options</strong> — Set <code>X-Frame-Options: DENY</code> to prevent your site from being framed.</li>
+<li><strong>CSP frame-ancestors</strong> — Use <code>Content-Security-Policy: frame-ancestors 'self'</code>.</li>
+<li><strong>Audit Third-Party Scripts</strong> — Review all external scripts that could inject iframes.</li>
+</ol>`,
+        "Malicious Redirect": `<h4> How to Fix Malicious Redirects</h4>
+<ol>
+<li><strong>Validate Redirect URLs</strong> — Only allow redirects to trusted, allowlisted domains.</li>
+<li><strong>Remove Injected Redirects</strong> — Check .htaccess, web.config, and application code for unauthorized redirects.</li>
+<li><strong>Monitor for Changes</strong> — Set up file integrity monitoring on critical configuration files.</li>
+</ol>`,
+        "Malware Download Link": `<h4> How to Handle Malware Download Links</h4>
+<ol>
+<li><strong>Remove the Links</strong> — Delete all links pointing to suspicious executable files.</li>
+<li><strong>Scan Uploaded Files</strong> — Implement server-side malware scanning for all file uploads.</li>
+<li><strong>Restrict File Types</strong> — Block uploads of executable file types (.exe, .bat, .ps1, etc.).</li>
+</ol>`,
+        "Obfuscated Malicious Code": `<h4> How to Handle Obfuscated Code</h4>
+<ol>
+<li><strong>Deobfuscate & Analyze</strong> — Use tools like js-beautify to understand what the code does.</li>
+<li><strong>Remove if Unauthorized</strong> — Delete any code you didn't write or approve.</li>
+<li><strong>Monitor File Integrity</strong> — Use checksums to detect unauthorized file modifications.</li>
+<li><strong>Harden Access</strong> — Review file permissions and access controls on your web server.</li>
+</ol>`,
+        "Cryptocurrency Miner": `<h4> How to Remove Cryptocurrency Miners</h4>
+<ol>
+<li><strong>Remove Miner Scripts</strong> — Delete references to mining libraries (Coinhive, CryptoLoot, etc.).</li>
+<li><strong>Block Mining Domains</strong> — Use CSP to block connections to known mining pool domains.</li>
+<li><strong>Audit Third-Party Scripts</strong> — Check all external scripts and ad networks for mining code.</li>
+<li><strong>File Integrity Monitoring</strong> — Detect unauthorized code changes automatically.</li>
+</ol>`,
+        "Phishing Indicator": `<h4> How to Handle Phishing Indicators</h4>
+<ol>
+<li><strong>Remove Phishing Content</strong> — Delete any fake login forms or deceptive pages.</li>
+<li><strong>Report the Incident</strong> — Notify your hosting provider and report to anti-phishing organizations.</li>
+<li><strong>Check for Compromise</strong> — Investigate how the phishing page was deployed (compromised credentials, vulnerable plugin, etc.).</li>
+<li><strong>Reset Credentials</strong> — Change all admin passwords and API keys.</li>
+</ol>`,
+        "Malware Infection": `<h4> How to Handle Malware Infection</h4>
+<ol>
+<li><strong>Isolate the Server</strong> — Take the affected system offline to prevent further spread or data exfiltration.</li>
+<li><strong>Identify the Entry Point</strong> — Review access logs to find how the attacker gained access (e.g., vulnerable plugin, stolen credentials).</li>
+<li><strong>Clean and Restore</strong> — Restore the application from a known clean backup or manually remove malicious files.</li>
+<li><strong>Check Domain Reputation</strong> — If the domain was flagged by VirusTotal, request a review after cleaning the site.</li>
+</ol>`,
+        "XML External Entity (XXE) Injection": `<h4> How to Fix XXE Injection</h4>
+<ol>
+<li><strong>Disable DTDs</strong> — Configure your XML parser to strictly disable Document Type Definitions (DTDs) and external entity resolution.</li>
+<li><strong>Language Specific</strong> — In Java, set <code>factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);</code>.</li>
+<li><strong>Prefer JSON</strong> — Use less complex formats like JSON when parsing untrusted data.</li>
+</ol>`,
+        "Invalid Input / Fuzzing Exception": `<h4> How to Fix Input Exceptions</h4>
+<ol>
+<li><strong>Global Error Handling</strong> — Implement global exception handlers to catch unexpected errors before they reach the user.</li>
+<li><strong>Input Validation</strong> — Ensure all user input is validated (type, length, format) before processing.</li>
+<li><strong>Sanitize Stack Traces</strong> — Never return raw stack traces in HTTP responses in production environments.</li>
+</ol>`,
+        "Broken Access Control (IDOR)": `<h4> How to Fix Broken Access Control (IDOR)</h4>
+<ol>
+<li><strong>Mandatory Access Checks</strong> — Implement access control checks on every request attempting to access a specific resource.</li>
+<li><strong>Verify Ownership</strong> — Do not rely on obscure IDs. Always verify that the currently authenticated user owns the requested object ID.</li>
+<li><strong>Indirect References</strong> — Use indirect references (like session variables) or non-guessable UUIDs instead of predictable sequential integers.</li>
+</ol>`,
+        "Missing Rate Limiting": `<h4> How to Fix Missing Rate Limiting</h4>
+<ol>
+<li><strong>API Rate Limiting</strong> — Implement API rate limiting (e.g., 100 requests per minute per IP address).</li>
+<li><strong>Authentication Limits</strong> — For authentication endpoints, enforce account lockouts or CAPTCHAs after a small number of failed login attempts.</li>
+<li><strong>WAF Protection</strong> — Use a Web Application Firewall (WAF) or tools like Fail2Ban to block IPs demonstrating malicious burst patterns.</li>
+</ol>`
+    };
+
+    // Populate vulnerability descriptions
+    document.querySelectorAll('.finding-card').forEach((card, index) => {
+        const vulnType = card.dataset.type;
+        const info = VULN_INFO[vulnType];
+        const descEl = document.getElementById(`vulnDesc_${index + 1}`);
+        if (info && descEl) {
+            let dynamicScenario = info.scenario;
+            if (vulnType === "Missing Security Header") {
+                const evidenceEl = card.querySelector('.evidence') || card.querySelector('pre');
+                const evidenceText = evidenceEl ? evidenceEl.textContent : "";
+                if (evidenceText.includes("X-Frame-Options")) {
+                    dynamicScenario = "Without the X-Frame-Options header, a web application allows its content to be embedded inside an iframe on an external domain. This enables Clickjacking, where an attacker layers your legitimate site invisibly under a malicious site, tricking users into clicking buttons they can't see.";
+                } else if (evidenceText.includes("Strict-Transport-Security") || evidenceText.includes("HSTS")) {
+                    dynamicScenario = "Without HTTP Strict Transport Security (HSTS), the very first connection a user makes to a website might occur over unencrypted HTTP. An attacker on the same network can intercept this split-second unencrypted request and silently hijack the session before a secure connection is established.";
+                } else if (evidenceText.includes("Content-Security-Policy") || evidenceText.includes("CSP")) {
+                    dynamicScenario = "Without a strict Content-Security-Policy (CSP), the browser lacks a definitive 'allowlist' of trusted scripts. As a result, the browser cannot differentiate between legitimate application scripts and maliciously injected payloads, drastically reducing the site's defense against Cross-Site Scripting (XSS).";
+                } else if (evidenceText.includes("X-Content-Type-Options")) {
+                    dynamicScenario = "Without the X-Content-Type-Options: nosniff directive, browsers might try to 'guess' a file's type. This allows attackers to upload dangerous executable scripts disguised as benign images, which the browser will mistakenly execute, bypassing standard file upload restrictions.";
+                }
+            }
+
+            descEl.innerHTML = `
+            <div class="vuln-info-box">
+                <span class="vuln-info-icon">${info.icon}</span>
+                <div class="vuln-info-content">
+                    <p class="vuln-info-desc">${info.description}</p>
+                    <p class="vuln-info-impact"><strong>Impact:</strong> ${info.impact}</p>
+                    ${dynamicScenario ? `
+                    <div class="scenario-container">
+                        <button class="btn-scenario-toggle" onclick="toggleScenario(this)"> Explain in Plain English </button>
+                        <div class="scenario-content" style="display: none;">
+                            <p><strong>Real-World Scenario:</strong> ${dynamicScenario}</p>
+                        </div>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+        }
+    });
+
+    // Toggle scenario function
+    window.toggleScenario = function(btn) {
+        const content = btn.nextElementSibling;
+        if (content.style.display === 'none') {
+            content.style.display = 'block';
+            btn.innerHTML = ' Hide Plain English ';
+        } else {
+            content.style.display = 'none';
+            btn.innerHTML = ' Explain in Plain English ';
+        }
+    };
+
+    // Update lock icons based on plan
+    function updateFixButtons() {
+        const isPremium = WSSPlan.isPremium();
+        document.querySelectorAll('.fix-lock').forEach(lock => {
+            lock.textContent = isPremium ? '' : '';
+        });
+        document.querySelectorAll('.btn-fix').forEach(btn => {
+            if (isPremium) {
+                btn.classList.add('btn-fix-premium');
+            } else {
+                btn.classList.remove('btn-fix-premium');
+            }
+        });
+    }
+    updateFixButtons();
+
+    function showFix(vulnType, button) {
+        const container = button.closest('.fix-button-container');
+        const contentEl = container.querySelector('.fix-content');
+
+        if (contentEl.style.display === 'block') {
+            contentEl.style.display = 'none';
+            return;
+        }
+
+        if (!WSSPlan.isPremium()) {
+            contentEl.innerHTML = `
+            <div class="fix-guide" style="padding: 1.25rem 0; text-align: left;">
+                <h4 style="color: #ea580c; margin-bottom: 0.5rem; font-size: 1.05rem;">Premium Feature</h4>
+                <p style="margin-bottom: 1rem; color: #cbd5e1; font-size: 0.95rem;">The detailed remediation guide for this vulnerability is a Premium feature.</p>
+                <a href="/pricing" class="btn btn-primary" style="display: inline-block; padding: 0.6rem 1.5rem; border-radius: 100px; font-size: 0.95rem;">Upgrade to Premium</a>
+            </div>`;
+            contentEl.style.display = 'block';
+            return;
+        }
+
+        let guide = REMEDIATION_GUIDES[vulnType];
+        
+        if (vulnType === "Missing Security Header") {
+            const card = button.closest('.finding-card');
+            const evidenceEl = card.querySelector('.evidence') || card.querySelector('pre');
+            const evidenceText = evidenceEl ? evidenceEl.textContent : "";
+            
+            if (evidenceText.includes("X-Frame-Options")) {
+                guide = `<h4> How to Fix Missing X-Frame-Options</h4><ol><li><strong>Add Header</strong> — Configure your server to return <code>X-Frame-Options: DENY</code> or <code>SAMEORIGIN</code> to prevent Clickjacking.</li></ol>`;
+            } else if (evidenceText.includes("Strict-Transport-Security") || evidenceText.includes("HSTS")) {
+                guide = `<h4> How to Fix Missing HSTS</h4><ol><li><strong>Add Header</strong> — Configure your server to return <code>Strict-Transport-Security: max-age=31536000; includeSubDomains</code> to enforce HTTPS and prevent SSL Stripping.</li></ol>`;
+            } else if (evidenceText.includes("Content-Security-Policy") || evidenceText.includes("CSP")) {
+                guide = `<h4> How to Fix Missing CSP</h4><ol><li><strong>Add Header</strong> — Implement a robust <code>Content-Security-Policy</code> to mitigate XSS. Start with <code>Content-Security-Policy: default-src 'self'</code>.</li></ol>`;
+            } else if (evidenceText.includes("X-Content-Type-Options")) {
+                guide = `<h4> How to Fix Missing X-Content-Type-Options</h4><ol><li><strong>Add Header</strong> — Configure your server to return <code>X-Content-Type-Options: nosniff</code> to prevent MIME-sniffing attacks.</li></ol>`;
+            } else if (evidenceText.includes("Permissions-Policy")) {
+                guide = `<h4> How to Fix Missing Permissions-Policy</h4><ol><li><strong>Add Header</strong> — Restrict browser features your site doesn't need: <code>Permissions-Policy: camera=(), microphone=(), geolocation=()</code>.</li></ol>`;
+            }
+        } else if (vulnType === "Command Injection") {
+            guide = `<h4> How to Fix Command Injection</h4><ol><li><strong>Avoid Shells</strong> — Never pass user input directly into system shells (e.g., \`os.system\` in Python or \`exec\` in PHP).</li><li><strong>Use Safe APIs</strong> — Use language-specific APIs that execute binaries directly without invoking a shell (e.g., \`subprocess.run\` in Python).</li><li><strong>Strict Whitelisting</strong> — If you must pass input, strictly validate it against an alphanumeric whitelist.</li></ol>`;
+        } else if (vulnType === "CORS Misconfiguration") {
+            guide = `<h4> How to Fix CORS Misconfiguration</h4><ol><li><strong>Remove Wildcards</strong> — Never use \`Access-Control-Allow-Origin: *\` on endpoints that require authentication.</li><li><strong>Strict Whitelist</strong> — Configure your server to only return the Origin header if it matches a hardcoded, trusted list of your own domains.</li><li><strong>Never Reflect</strong> — Never dynamically reflect the user's incoming \`Origin\` header directly back into the \`Access-Control-Allow-Origin\` response header.</li></ol>`;
+        } else if (vulnType === "Cross-Site Request Forgery (CSRF)") {
+            guide = `<h4> How to Fix CSRF</h4><ol><li><strong>Anti-CSRF Tokens</strong> — Implement the synchronizer token pattern. Embed a unique, cryptographically secure hidden token in every state-changing HTML form, and validate it on the server.</li><li><strong>SameSite Cookies</strong> — Set the \`SameSite=Lax\` or \`SameSite=Strict\` attribute on your session cookies to prevent the browser from sending them during cross-site POST requests.</li></ol>`;
+        } else if (vulnType === "Server-Side Request Forgery (SSRF)") {
+            guide = `<h4> How to Fix SSRF</h4><ol><li><strong>Whitelist Domains</strong> — If the application must fetch URLs, strictly whitelist the allowed destination domains.</li><li><strong>Block Internal IPs</strong> — Implement a network-level or code-level block against resolving internal IP addresses (127.0.0.1, 192.168.x.x, 169.254.169.254).</li><li><strong>Disable Redirects</strong> — Configure your backend HTTP client to NOT automatically follow HTTP redirects, as attackers use redirects to bypass initial URL validation.</li></ol>`;
+        }
+
+        if (guide) {
+            contentEl.innerHTML = `<div class="fix-guide">${guide}</div>`;
+            contentEl.style.display = 'block';
+        } else {
+            contentEl.innerHTML = `<div class="fix-guide"><p>Remediation guide for "${vulnType}" coming soon.</p></div>`;
+            contentEl.style.display = 'block';
+        }
+    }
+
+    function closePremiumModal() {
+        document.getElementById('premiumModal').style.display = 'none';
+    }
+
+    // Close modal on overlay click
+    document.getElementById('premiumModal').addEventListener('click', function (e) {
+        if (e.target === this) closePremiumModal();
+    });
+
+    // Populate type filter from findings
+    const types = new Set();
+    document.querySelectorAll('.finding-card').forEach(card => {
+        types.add(card.dataset.type);
+    });
+    const typeFilter = document.getElementById('filterType');
+    types.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t;
+        opt.textContent = t;
+        typeFilter.appendChild(opt);
+    });
+
+    function filterFindings() {
+        const severity = document.getElementById('filterSeverity').value;
+        const type = document.getElementById('filterType').value;
+        const search = document.getElementById('filterSearch').value.toLowerCase();
+
+        document.querySelectorAll('.finding-card').forEach(card => {
+            let show = true;
+            if (severity !== 'all' && card.dataset.severity !== severity) show = false;
+            if (type !== 'all' && card.dataset.type !== type) show = false;
+            if (search && !card.dataset.searchable.toLowerCase().includes(search)) show = false;
+            card.style.display = show ? 'block' : 'none';
+        });
+    }
+    // Set severity bar widths from data attributes
+    document.querySelectorAll('.severity-bar-fill[data-width]').forEach(bar => {
+        bar.style.width = bar.dataset.width + '%';
+    });
+</script>
+{% endblock %}

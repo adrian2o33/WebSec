@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}WebSecScanner — Advanced Security Intelligence{% endblock %}
+
+{% block content %}
+<div class="landing-page" style="max-width: 1200px; margin: 0 auto; padding: 4rem 0;">
+    <div class="hero" style="text-align: center; margin-bottom: 6rem; position: relative;">
+        <div style="position: absolute; top: -50%; left: 50%; transform: translateX(-50%); width: 600px; height: 600px; background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%); z-index: -1; pointer-events: none; border-radius: 50%;"></div>
+        
+        <h1 class="hero-title" style="font-size: 4rem; font-weight: 900; margin-bottom: 1.5rem; line-height: 1.1; letter-spacing: -0.03em;">
+            Next-Generation <br />
+            <span class="gradient-text">Security Intelligence</span>
+        </h1>
+        <p class="hero-subtitle" style="max-width: 700px; margin: 0 auto; font-size: 1.25rem; color: var(--text-secondary); line-height: 1.8;">
+            Empower your infrastructure with automated vulnerability assessment and advanced malware detection. Secure your digital assets in minutes, not days.
+        </p>
+        
+        <div style="margin-top: 3rem; display: flex; gap: 1.5rem; justify-content: center;">
+            <a href="/web-scanner" class="btn btn-primary" style="padding: 1rem 2.5rem; font-size: 1.1rem; border-radius: 100px;">
+                Start Scanning
+            </a>
+            <a href="/pricing" class="btn btn-secondary" style="padding: 1rem 2.5rem; font-size: 1.1rem; border-radius: 100px;">
+                View Plans
+            </a>
+        </div>
+    </div>
+
+    <div class="landing-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 2.5rem;">
+        <!-- Web Scanner Card -->
+        <a href="/web-scanner" class="card" style="text-decoration: none; color: inherit; display: flex; flex-direction: column; padding: 3rem;">
+            <div style="width: 72px; height: 72px; border-radius: 20px; background: rgba(59, 130, 246, 0.1); color: var(--accent-primary); display: flex; align-items: center; justify-content: center; margin-bottom: 2rem; border: 1px solid rgba(59, 130, 246, 0.2);">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+            </div>
+            <h2 style="font-size: 1.75rem; font-weight: 800; margin-bottom: 1rem;">Web Vulnerability Scanner</h2>
+            <p style="color: var(--text-secondary); line-height: 1.7; margin-bottom: 2.5rem; flex-grow: 1; font-size: 1.05rem;">
+                Perform deep crawls and fuzzing to detect XSS, SQL Injection, Path Traversal, Command Injection, and security misconfigurations across your web applications.
+            </p>
+            <div style="font-weight: 700; color: var(--accent-primary); display: flex; align-items: center; gap: 0.5rem; font-size: 1.1rem;">
+                Launch Web Scan <span style="font-size: 1.2rem;">&rarr;</span>
+            </div>
+        </a>
+
+        <!-- File Scanner Card -->
+        <a href="/file-scanner" class="card" style="text-decoration: none; color: inherit; display: flex; flex-direction: column; padding: 3rem;">
+            <div style="width: 72px; height: 72px; border-radius: 20px; background: rgba(139, 92, 246, 0.1); color: var(--accent-secondary); display: flex; align-items: center; justify-content: center; margin-bottom: 2rem; border: 1px solid rgba(139, 92, 246, 0.2);">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+            </div>
+            <h2 style="font-size: 1.75rem; font-weight: 800; margin-bottom: 1rem;">Advanced File Analysis</h2>
+            <p style="color: var(--text-secondary); line-height: 1.7; margin-bottom: 2.5rem; flex-grow: 1; font-size: 1.05rem;">
+                Utilize static and dynamic analysis to scan uploads for malware, obfuscated scripts, malicious macros, and packed executables instantly.
+            </p>
+            <div style="font-weight: 700; color: var(--accent-secondary); display: flex; align-items: center; gap: 0.5rem; font-size: 1.1rem;">
+                Analyze Files <span style="font-size: 1.2rem;">&rarr;</span>
+            </div>
+        </a>
+    </div>
+</div>
+
+<style>
+@media (max-width: 768px) {
+    .landing-grid { grid-template-columns: 1fr !important; }
+    .hero-title { font-size: 2.5rem !important; }
+    .card { padding: 2rem !important; }
+}
+</style>
+{% endblock %}

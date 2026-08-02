@@ -1,0 +1,5 @@
+http://evil-test.com
+https://evil-test.com
+//evil-test.com
+http://127.0.0.1
+https://127.0.0.1

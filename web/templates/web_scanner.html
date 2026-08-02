@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% block title %}WebSecScanner — Web Scanner{% endblock %}
+
+{% block content %}
+<div class="hero" style="text-align: center; padding: 4rem 0 2rem; position: relative;">
+    <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 400px; height: 400px; background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 60%); z-index: -1; pointer-events: none; border-radius: 50%;"></div>
+    <div class="hero-content">
+        <h1 class="hero-title" style="font-size: 3rem; font-weight: 800; margin-bottom: 1rem; line-height: 1.1;">
+            <span class="gradient-text">Automated Web Security</span>
+            <br>Scanner & Malware Detector
+        </h1>
+        <p class="hero-subtitle" style="max-width: 700px; margin: 0 auto; font-size: 1.15rem; color: var(--text-secondary); line-height: 1.6;">
+            Scan websites for vulnerabilities (XSS, SQLi, Path Traversal) and malware
+            (crypto miners, phishing, obfuscated scripts) with ML-powered analysis.
+        </p>
+    </div>
+</div>
+
+<section class="scan-section">
+    <div class="card scan-card">
+        <div class="card-header">
+            <h2> New Scan</h2>
+        </div>
+        <form id="scanForm" class="scan-form">
+            <div class="form-group">
+                <label for="target_url">Target URL</label>
+                <input type="url" id="target_url" name="target_url"
+                       placeholder="https://example.com"
+                       required autocomplete="url">
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="max_depth">Crawl Depth</label>
+                    <input type="number" id="max_depth" name="max_depth" value="3" min="1" max="10">
+                </div>
+                <div class="form-group">
+                    <label for="max_pages">Max Pages</label>
+                    <input type="number" id="max_pages" name="max_pages" value="50" min="1" max="500">
+                </div>
+                <div class="form-group">
+                    <label for="request_delay">Request Delay (s)</label>
+                    <input type="number" id="request_delay" name="request_delay" value="0.3" min="0" max="5" step="0.1">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group" style="width: 100%; padding: 1rem; background-color: rgba(59, 130, 246, 0.05); border-radius: 8px;">
+                    <h3 style="margin-top: 0; color: var(--accent-primary); display: flex; align-items: center; gap: 0.5rem;">
+                        <span></span> Interactive Login (Auto-Cookie)
+                    </h3>
+                    <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                        If the target requires login, click the button below to open a browser window. Log in manually (supports SSO & 2FA), then close the window. We'll automatically extract your session cookies.
+                    </p>
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                        <button type="button" class="btn btn-primary" id="btn_interactive_login" onclick="launchInteractiveLogin()" style="width: 100%;">
+                            Launch Login Browser for Target URL
+                        </button>
+                    </div>
+                    
+                    <details>
+                        <summary style="cursor: pointer; color: var(--text-muted); font-size: 0.85rem;">Advanced: View/Edit Raw Authentication Cookies JSON</summary>
+                        <textarea id="auth_cookies" name="auth_cookies" placeholder='{"session": "user_session_token"}' style="width: 100%; min-height: 60px; background-color: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem; font-family: monospace;"></textarea>
+                    </details>
+                </div>
+            </div>
+
+            <div class="form-row toggles">
+                <label class="toggle-label">
+                    <input type="checkbox" name="enable_ml" checked>
+                    <span class="toggle-switch"></span>
+                    <span>ML Analysis</span>
+                </label>
+                <label class="toggle-label">
+                    <input type="checkbox" name="enable_miner_scan">
+                    <span class="toggle-switch"></span>
+                    <span>Crypto Miner Scan</span>
+                </label>
+                <label class="toggle-label">
+                    <input type="checkbox" name="enable_subdomain_enum">
+                    <span class="toggle-switch"></span>
+                    <span>Subdomain Enum</span>
+                </label>
+                <label class="toggle-label">
+                    <input type="checkbox" name="enable_vt">
+                    <span class="toggle-switch"></span>
+                    <span>Use VirusTotal API</span>
+                </label>
+                <label class="toggle-label">
+                    <input type="checkbox" name="enable_rate_limit" checked>
+                    <span class="toggle-switch"></span>
+                    <span>Rate Limit Scan</span>
+                </label>
+            </div>
+
+            <div class="consent-box">
+                <label class="toggle-label">
+                    <input type="checkbox" id="consent" required>
+                    <span class="toggle-switch"></span>
+                    <span>I confirm I have authorisation to scan this target</span>
+                </label>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg" id="startScanBtn">
+                <span class="btn-icon"></span>
+                Start Scan
+            </button>
+        </form>
+    </div>
+</section>
+
+{% if scan_history %}
+<section class="history-section">
+    <h2 class="section-title"> Recent Scans</h2>
+    <div class="history-grid">
+        {% for scan in scan_history|reverse %}
+        <div class="card history-card">
+            <div class="history-url">{{ scan.target_url }}</div>
+            <div class="history-meta">
+                <span>ID: {{ scan.scan_id }}</span>
+                <span>{{ scan.pages_crawled }} pages</span>
+                <span>{{ scan.findings|length }} findings</span>
+                <span>{{ "%.1f"|format(scan.scan_duration_seconds) }}s</span>
+            </div>
+            <div class="severity-badges">
+                {% set summary = scan.severity_summary %}
+                {% if summary.get('Critical', 0) > 0 %}
+                <span class="badge badge-critical">{{ summary.Critical }} Critical</span>
+                {% endif %}
+                {% if summary.get('High', 0) > 0 %}
+                <span class="badge badge-high">{{ summary.High }} High</span>
+                {% endif %}
+                {% if summary.get('Medium', 0) > 0 %}
+                <span class="badge badge-medium">{{ summary.Medium }} Medium</span>
+                {% endif %}
+                {% if summary.get('Low', 0) > 0 %}
+                <span class="badge badge-low">{{ summary.Low }} Low</span>
+                {% endif %}
+            </div>
+            <a href="/results/{{ scan.scan_id }}" class="btn btn-sm">View Results →</a>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('scanForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('startScanBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Starting scan...';
+
+    const formData = new FormData(this);
+    try {
+        const resp = await fetch('/start-scan', { method: 'POST', body: formData });
+        const data = await resp.json();
+        if (data.error) {
+            alert(data.error);
+            btn.disabled = false;
+            btn.innerHTML = '<span class="btn-icon"></span> Start Scan';
+        } else {
+            window.location.href = data.redirect;
+        }
+    } catch(err) {
+        alert('Failed to start scan: ' + err.message);
+        btn.disabled = false;
+        btn.innerHTML = '<span class="btn-icon"></span> Start Scan';
+    }
+});
+
+async function launchInteractiveLogin() {
+    const urlInput = document.getElementById('target_url');
+    const url = urlInput.value.trim();
+    if (!url) {
+        alert("Please enter a Target URL at the top first.");
+        urlInput.focus();
+        return;
+    }
+    
+    const btn = document.getElementById('btn_interactive_login');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<svg class="spinner" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:8px; animation: spin 1s linear infinite;"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>Waiting for you to close browser...';
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch('/api/interactive-login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ login_url: url })
+        });
+        
+        const data = await response.json();
+        if (response.ok) {
+            document.getElementById('auth_cookies').value = JSON.stringify(data.cookies, null, 2);
+            alert(" Successfully extracted cookies! You can now start the scan.");
+        } else {
+            alert("Error: " + data.error);
+        }
+    } catch (e) {
+        alert("Error: " + e.message);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}File Scan Results{% endblock %}
+
+{% block content %}
+<div class="results-page">
+    <div class="results-header" style="text-align: center; padding: 2rem 0; margin-bottom: 2rem;">
+        <h1 class="gradient-text" style="font-size: 3rem; font-weight: 900; margin-bottom: 0.5rem; letter-spacing: -0.02em;">File Scan Results</h1>
+        <p class="target-url" style="font-size: 1.25rem; color: var(--text-secondary);">{{ results|length }} file(s) scanned</p>
+    </div>
+
+
+    {% if results|length == 1 %}
+        <!-- OPTION A: Single File Upload -->
+        {% set result = results[0] %}
+        
+        {% set grade_color = '#6b7280' %}
+        {% if result.threat_level == 'Clean' %}{% set grade_color = '#10b981' %}{% set grade = 'A' %}{% endif %}
+        {% if result.threat_level == 'Suspicious' %}{% set grade_color = '#f59e0b' %}{% set grade = 'C' %}{% endif %}
+        {% if result.threat_level == 'Malicious' %}{% set grade_color = '#ef4444' %}{% set grade = 'F' %}{% endif %}
+        {% if result.threat_level == 'Error' %}{% set grade_color = '#6b7280' %}{% set grade = 'N/A' %}{% endif %}
+
+        <div class="card grade-card" style="display: flex; align-items: center; gap: 2rem; border-left: 8px solid {{ grade_color }}; margin-bottom: 2rem;">
+            <div class="grade-circle" style="font-size: 5rem; font-weight: 900; line-height: 1; color: {{ grade_color }}; text-shadow: 0 0 20px {{ grade_color }}40;">
+                {{ grade }}
+            </div>
+            <div class="grade-details">
+                <h2 style="margin-bottom: 0.5rem; font-size: 1.5rem;">Verdict: {{ result.threat_level }}</h2>
+                <p style="color: var(--text-secondary); font-size: 1.1rem; line-height: 1.5;"><strong>File:</strong> {{ result.original_filename }} ({{ result.file_size_human }})</p>
+            </div>
+        </div>
+
+        <div class="overview-grid">
+            <div class="card stat-card">
+                <div class="stat-icon"></div>
+                <div class="stat-value">{{ result.file_type }}</div>
+                <div class="stat-label">File Type</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon"></div>
+                <div class="stat-value">
+                    {{ "%.2f"|format(result.entropy|float) }}/8.0
+                    {% set ext = result.original_filename.split('.')[-1]|lower if '.' in result.original_filename else '' %}
+                    {% if ext in ['pdf', 'zip', 'rar', '7z', 'gz', 'png', 'jpg', 'mp4', 'mp3', 'docx', 'xlsx', 'pptx'] %}
+                        <br><span style="font-size: 0.8rem; color: #94a3b8; font-weight: normal; display: block; margin-top: -0.2rem;">(Normal for this format)</span>
+                    {% endif %}
+                </div>
+                <div class="stat-label">Entropy</div>
+            </div>
+            <div class="card stat-card">
+                <div class="stat-icon"></div>
+                <div class="stat-value">{{ "%.2f"|format(result.scan_time|float) }}s</div>
+                <div class="stat-label">Duration</div>
+            </div>
+            <div class="card stat-card">
+                <div class="stat-icon"></div>
+                <div class="stat-value">{{ result.threat_count }}</div>
+                <div class="stat-label">Threats</div>
+            </div>
+        </div>
+
+        <div class="findings-list" style="margin-top: 2rem;">
+            <h2 style="margin-bottom: 1rem;">Threat Details</h2>
+            {% if result.threats|length == 0 %}
+                <div class="card empty-card">
+                    <div class="empty-icon"></div>
+                    <h3>No Threats Found</h3>
+                    <p>This file appears to be clean.</p>
+                </div>
+            {% else %}
+                {% for f in result.threats %}
+                {% set color = '#6b7280' %}
+                {% if f.severity == 'Critical' %}{% set color = '#dc2626' %}{% endif %}
+                {% if f.severity == 'High' %}{% set color = '#ea580c' %}{% endif %}
+                {% if f.severity == 'Medium' %}{% set color = '#d97706' %}{% endif %}
+                {% if f.severity == 'Low' %}{% set color = '#2563eb' %}{% endif %}
+                <div class="card finding-card" style="border-left: 4px solid {{ color }}; padding: 1.5rem; margin: 1rem 0; background: #1e293b; border-radius: 12px;">
+                    <div class="finding-header" style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                        <span class="severity-badge" style="background: {{ color }}; color: white; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: 700; text-transform: uppercase;">
+                            {{ f.severity }}
+                        </span>
+                        <span class="finding-type" style="font-weight: 600; font-size: 1.1rem;">{{ f.category }}</span>
+                        {% if f.severity != 'Info' %}
+                        <span class="confidence" title="Detection confidence" style="margin-left: auto; color: #94a3b8; font-size: 0.85rem;">
+                            {{ (f.confidence * 100)|round|int }}% conf.
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="finding-body">
+                        <p style="margin: 0.5rem 0;"><strong>Description:</strong> {{ f.description }}</p>
+                        {% if f.evidence %}
+                        <p style="margin: 0.5rem 0;"><strong>Evidence:</strong></p>
+                        <pre class="evidence" style="background: #0f172a; padding: 1rem; border-radius: 8px; overflow-x: auto; font-size: 0.85rem; color: #cbd5e1; margin: 0.5rem 0; white-space: pre-wrap; word-break: break-all;">{{ f.evidence }}</pre>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+        <div class="card download-card" style="margin-bottom: 2rem; margin-top: 2rem;">
+            <h2> Download Report</h2>
+            <div class="download-buttons">
+                <a href="/download-file-report/{{ scan_id }}{% if file_index is defined %}?file_index={{ file_index }}{% endif %}" class="btn btn-download">
+                     scan_{{ result.original_filename }}.html
+                </a>
+            </div>
+        </div>
+
+    {% else %}
+        <!-- OPTION B: Multiple File Upload (Premium) -->
+        <div class="multi-file-results">
+            {% for result in results %}
+                {% set grade_color = '#6b7280' %}
+                {% if result.threat_level == 'Clean' %}{% set grade_color = '#10b981' %}{% set grade = 'A' %}{% endif %}
+                {% if result.threat_level == 'Suspicious' %}{% set grade_color = '#f59e0b' %}{% set grade = 'C' %}{% endif %}
+                {% if result.threat_level == 'Malicious' %}{% set grade_color = '#ef4444' %}{% set grade = 'F' %}{% endif %}
+                {% if result.threat_level == 'Error' %}{% set grade_color = '#6b7280' %}{% set grade = 'N/A' %}{% endif %}
+
+                <div class="card multi-file-card" style="border-left: 6px solid {{ grade_color }}; margin-bottom: 1.5rem; overflow: hidden; transition: transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 24px rgba(0,0,0,0.2)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+                    <a href="/file-result/{{ scan_id }}/{{ loop.index0 }}" style="text-decoration: none; color: inherit; display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; width: 100%;">
+                        <div style="display: flex; align-items: center; gap: 1.5rem;">
+                            <div class="grade-badge" style="background: {{ grade_color }}20; color: {{ grade_color }}; width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800;">
+                                {{ grade }}
+                            </div>
+                            <div>
+                                <h3 style="margin: 0; font-size: 1.25rem;">{{ result.original_filename }}</h3>
+                                <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">
+                                    {{ result.file_size_human }} • {{ result.file_type }} • {{ result.threat_count }} threats
+                                </p>
+                            </div>
+                        </div>
+                        <div class="expand-indicator" style="color: var(--text-primary); font-size: 1.25rem; font-weight: bold; background: rgba(255,255,255,0.1); padding: 0.5rem 1rem; border-radius: 6px;">
+                            View Details →
+                        </div>
+                    </a>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="actions-bottom" style="text-align: center; margin-top: 3rem;">
+        <a href="/file-scanner" class="btn btn-primary btn-lg"> Scan More Files</a>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleDetails(header) {
+    const details = header.nextElementSibling;
+    const indicator = header.querySelector('.expand-indicator');
+    if (details.style.display === 'none') {
+        details.style.display = 'block';
+        indicator.style.transform = 'rotate(180deg)';
+    } else {
+        details.style.display = 'none';
+        indicator.style.transform = 'rotate(0deg)';
+    }
+}
+</script>
+{% endblock %}

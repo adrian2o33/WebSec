@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Pricing — WebSecScanner{% endblock %}
+
+{% block content %}
+<div class="pricing-page">
+    <div class="hero" style="text-align: center; margin-bottom: 3rem;">
+        <h1 class="hero-title">
+            Choose Your <span class="gradient-text">Plan</span>
+        </h1>
+        <p class="hero-subtitle" style="max-width: 700px; margin: 0 auto; font-size: 1.1rem;">
+            Start with our free tier or unlock the full power of WebSecScanner 
+            with detailed remediation guides and priority features.
+        </p>
+    </div>
+
+    <div class="pricing-grid">
+        <!-- Free Plan -->
+        <div class="card pricing-card {% if not session.get('user') or session.user.plan == 'Free' %}plan-active{% endif %}" id="planFree">
+            <div class="pricing-badge">Free</div>
+            <div class="pricing-price">
+                <span class="price-amount">$0</span>
+                <span class="price-period">/ forever</span>
+            </div>
+            <p class="pricing-desc">Everything you need to discover vulnerabilities.</p>
+            <ul class="pricing-features">
+                <li class="feature-included">
+                    <span class="feature-icon"></span>
+                    Full website crawling & fuzzing
+                </li>
+                <li class="feature-included">
+                    <span class="feature-icon"></span>
+                    XSS, SQLi, Path Traversal, Cmd Injection detection
+                </li>
+                <li class="feature-included">
+                    <span class="feature-icon"></span>
+                    Security header & cookie analysis
+                </li>
+                <li class="feature-included">
+                    <span class="feature-icon"></span>
+                    Malware & virus file scanning
+                </li>
+                <li class="feature-included">
+                    <span class="feature-icon"></span>
+                    ML-powered severity classification
+                </li>
+                <li class="feature-included">
+                    <span class="feature-icon"></span>
+                    HTML, CSV & JSON report downloads
+                </li>
+                <li class="feature-included">
+                    <span class="feature-icon"></span>
+                    Vulnerability description & impact info
+                </li>
+
+            </ul>
+            
+            {% if session.get('user') %}
+                {% if session.user.plan == 'Free' %}
+                    <button class="btn btn-secondary btn-lg pricing-btn active-plan" disabled> Current Plan</button>
+                {% else %}
+                    <a href="/account" class="btn btn-secondary btn-lg pricing-btn">Manage Plan</a>
+                {% endif %}
+            {% else %}
+                <a href="/register" class="btn btn-secondary btn-lg pricing-btn">Sign Up Free</a>
+            {% endif %}
+        </div>
+
+        <!-- Premium Plan -->
+        <div class="card pricing-card pricing-card-premium {% if session.get('user') and session.user.plan == 'Premium' %}plan-active{% endif %}" id="planPremium">
+            <div class="pricing-popular"> MOST POPULAR</div>
+            <div class="pricing-badge pricing-badge-premium">Premium</div>
+            <div class="pricing-price">
+                <span class="price-amount">$19</span>
+                <span class="price-period">/ month</span>
+            </div>
+            <p class="pricing-desc">Full vulnerability intelligence & remediation guidance.</p>
+            <ul class="pricing-features">
+                <li class="feature-included">
+                    <span class="feature-icon"></span>
+                    Everything in Free
+                </li>
+                <li class="feature-premium">
+                    <span class="feature-icon"></span>
+                    Detailed remediation guides for every vulnerability
+                </li>
+                <li class="feature-premium">
+                    <span class="feature-icon"></span>
+                    Step-by-step "How to Fix" with code examples
+                </li>
+                <li class="feature-premium">
+                    <span class="feature-icon"></span>
+                    Priority support badge
+                </li>
+                <li class="feature-premium">
+                    <span class="feature-icon"></span>
+                    Early access to new detection modules
+                </li>
+            </ul>
+            
+            {% if session.get('user') %}
+                {% if session.user.plan == 'Premium' %}
+                    <button class="btn btn-primary btn-lg pricing-btn active-plan" disabled> Current Plan</button>
+                {% else %}
+                    <form action="/upgrade-mock" method="POST" style="margin: 0; padding: 0;">
+                        <button type="submit" class="btn btn-primary btn-lg pricing-btn" style="width: 100%;"> Upgrade to Premium</button>
+                    </form>
+                {% endif %}
+            {% else %}
+                <a href="/login?next=/pricing" class="btn btn-primary btn-lg pricing-btn">Log In to Upgrade</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

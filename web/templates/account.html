@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+{% block title %}Manage Account — WebSecScanner{% endblock %}
+
+{% block content %}
+<div class="account-container" style="padding: 2rem 0;">
+    <h1 class="section-title">Account Settings</h1>
+    
+    <div class="account-tabs">
+        <button class="tab-btn active" onclick="showTab('profile')">Profile</button>
+        <button class="tab-btn" onclick="showTab('security')">Security & Devices</button>
+        <button class="tab-btn" onclick="showTab('scans')">Recent Scans</button>
+    </div>
+
+    <!-- PROFILE TAB -->
+    <div id="tab-profile" class="tab-content active">
+        <div class="card profile-card">
+            <div class="profile-avatar">
+                {{ user.username[0]|upper }}
+            </div>
+            <div class="profile-info" style="flex: 1;">
+                <h2>{{ user.username }}</h2>
+                <p>{{ user.email }}</p>
+            </div>
+        </div>
+
+        <div class="card" style="margin-bottom: 2rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h2 style="margin: 0;">Change Username</h2>
+                <button type="button" class="btn btn-sm" onclick="toggleUsernameForm()" id="editUsernameBtn">Edit Username</button>
+            </div>
+            <form id="usernameForm" action="/account/update-username" method="POST" style="display: none; margin-top: 1rem;">
+                <div class="form-group" style="max-width: 400px;">
+                    <label>New Username</label>
+                    <input type="text" name="username" value="{{ user.username }}" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Update Username</button>
+            </form>
+        </div>
+
+        <div class="card plan-section">
+            <h2>Subscription Plan</h2>
+            <div style="margin-top: 1.5rem;">
+                {% if user.plan == 'Premium' %}
+                    <span class="plan-badge premium"> Premium Plan</span>
+                    <div class="plan-details">
+                        <p><strong>Member Since:</strong> {{ user.premium_since[:10] }}</p>
+                        {% if user.cancel_date %}
+                            <div style="margin-top: 1rem; padding: 1rem; background: rgba(239, 68, 68, 0.1); border-left: 3px solid var(--critical); border-radius: var(--radius-sm);">
+                                <p style="color: var(--critical); font-weight: 600; margin: 0;">
+                                     Your subscription has been cancelled and will end on {{ user.cancel_date[:10] }}.
+                                </p>
+                            </div>
+                        {% else %}
+                            <form action="/cancel-premium" method="POST" style="margin-top: 2rem;">
+                                <button type="submit" class="btn" style="background: rgba(239, 68, 68, 0.1); color: var(--critical); border: 1px solid rgba(239, 68, 68, 0.3);">
+                                    Cancel Premium Subscription
+                                </button>
+                            </form>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <span class="plan-badge free">Free Plan</span>
+                    <div class="plan-details">
+                        <p>You are currently on the Free plan, which includes basic vulnerability scanning.</p>
+                        <div style="margin-top: 2rem;">
+                            <a href="/pricing" class="btn btn-primary">Upgrade to Premium</a>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- SECURITY TAB -->
+    <div id="tab-security" class="tab-content">
+        <!-- Change Email -->
+        <div class="card" style="margin-bottom: 2rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h2 style="margin: 0;">Change Email Address</h2>
+                <button type="button" class="btn btn-sm" onclick="toggleForm('emailForm', 'editEmailBtn')" id="editEmailBtn">Edit Email</button>
+            </div>
+            <form id="emailForm" action="/account/update-security" method="POST" style="display: none; margin-top: 1rem; max-width: 400px;">
+                <div class="form-group">
+                    <label>New Email Address</label>
+                    <input type="email" name="email" value="{{ user.email }}" required>
+                </div>
+                <div class="form-group">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <label style="margin-bottom: 0;">Current Password <span style="color: var(--critical);">*</span></label>
+                        <a href="/forgot-password" style="font-size: 0.9rem; color: var(--accent-primary); text-decoration: none;">I forgot my password</a>
+                    </div>
+                    <input type="password" name="current_password" required placeholder="Enter current password to verify">
+                </div>
+                <button type="submit" class="btn btn-primary">Update Email</button>
+            </form>
+        </div>
+
+        <!-- Change Password -->
+        <div class="card" style="margin-bottom: 2rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h2 style="margin: 0;">Change Password</h2>
+                <button type="button" class="btn btn-sm" onclick="toggleForm('passwordForm', 'editPasswordBtn')" id="editPasswordBtn">Edit Password</button>
+            </div>
+            <form id="passwordForm" action="/account/update-security" method="POST" style="display: none; margin-top: 1rem; max-width: 400px;">
+                <div class="form-group">
+                    <label>New Password</label>
+                    <input type="password" name="password" required placeholder="••••••••">
+                </div>
+                <div class="form-group">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <label style="margin-bottom: 0;">Current Password <span style="color: var(--critical);">*</span></label>
+                        <a href="/forgot-password" style="font-size: 0.9rem; color: var(--accent-primary); text-decoration: none;">I forgot my password</a>
+                    </div>
+                    <input type="password" name="current_password" required placeholder="Enter current password to verify">
+                </div>
+                <button type="submit" class="btn btn-primary">Update Password</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Active Devices</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Devices currently logged into your account.</p>
+            
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <th style="padding: 1rem; color: var(--text-secondary);">Device</th>
+                            <th style="padding: 1rem; color: var(--text-secondary);">IP Address</th>
+                            <th style="padding: 1rem; color: var(--text-secondary);">Last Active</th>
+                            <th style="padding: 1rem; color: var(--text-secondary);">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for device in devices %}
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 1rem;">
+                                <strong>{{ device.device_info[:30] }}{% if device.device_info|length > 30 %}...{% endif %}</strong>
+                            </td>
+                            <td style="padding: 1rem;">{{ device.ip_address }}</td>
+                            <td style="padding: 1rem;">{{ device.last_active }}</td>
+                            <td style="padding: 1rem;">
+                                <form action="/account/logout-device/{{ device.id }}" method="POST" style="margin: 0;">
+                                    <button type="submit" class="btn btn-sm" style="background: rgba(239, 68, 68, 0.1); color: var(--critical);">Log Out</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" style="padding: 1rem; text-align: center; color: var(--text-muted);">No active devices found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- RECENT SCANS TAB -->
+    <div id="tab-scans" class="tab-content">
+        <div class="card">
+            <h2>Recent Scans</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Your most recently executed web and file scans.</p>
+            
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <th style="padding: 1rem; color: var(--text-secondary);">Type</th>
+                            <th style="padding: 1rem; color: var(--text-secondary);">Target</th>
+                            <th style="padding: 1rem; color: var(--text-secondary);">Findings</th>
+                            <th style="padding: 1rem; color: var(--text-secondary);">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for scan in recent_scans %}
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 1rem;">
+                                {% if scan.type == 'web' %}
+                                    <span class="badge" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa;"> Web Scan</span>
+                                {% else %}
+                                    <span class="badge" style="background: rgba(168, 85, 247, 0.2); color: #c084fc;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:-3px; margin-right:4px;"><circle cx="12" cy="12" r="8"></circle><line x1="12" y1="2" x2="12" y2="4"></line><line x1="12" y1="20" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"></line><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="4" y2="12"></line><line x1="20" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"></line><line x1="17.66" y1="4.93" x2="19.07" y2="6.34"></line></svg>File Scan</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 1rem;">
+                                {% if scan.type == 'web' %}
+                                    {{ scan.target_url }}
+                                {% else %}
+                                    {% if scan.file_count == 1 %}
+                                        {{ scan.results[0].original_filename }}
+                                    {% else %}
+                                        Batch: {{ scan.file_count }} files
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                            <td style="padding: 1rem;">
+                                {% if scan.type == 'web' %}
+                                    {{ scan.findings|length }} findings
+                                {% else %}
+                                    {% if scan.total_threats > 0 %}
+                                        <span style="color: var(--critical);">{{ scan.total_threats }} Threats</span>
+                                    {% else %}
+                                        <span style="color: #22c55e;">Clean</span>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                            <td style="padding: 1rem;">
+                                {% if scan.type == 'web' %}
+                                    <a href="/results/{{ scan.scan_id }}" class="btn btn-sm">Dashboard</a>
+                                    {% if scan.reports and scan.reports.html %}
+                                        <a href="/download/{{ scan.scan_id }}/html" class="btn btn-sm btn-secondary" style="margin-left: 0.5rem;">Download</a>
+                                    {% endif %}
+                                {% else %}
+                                    <a href="/file-results/{{ scan.scan_id }}" class="btn btn-sm">Dashboard</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" style="padding: 2rem; text-align: center; color: var(--text-muted);">You haven't run any scans yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function showTab(tabId) {
+        // Remove active class from all tabs
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        
+        // Add active class to clicked tab
+        document.getElementById('tab-' + tabId).classList.add('active');
+        const btn = document.querySelector(`.tab-btn[onclick="showTab('${tabId}')"]`);
+        if (btn) btn.classList.add('active');
+    }
+
+    function toggleUsernameForm() {
+        toggleForm('usernameForm', 'editUsernameBtn');
+    }
+
+    function toggleForm(formId, btnId) {
+        const form = document.getElementById(formId);
+        const btn = document.getElementById(btnId);
+        if (form.style.display === 'none') {
+            form.style.display = 'block';
+            btn.textContent = 'Cancel';
+        } else {
+            form.style.display = 'none';
+            // Reset text based on ID
+            if (btnId === 'editUsernameBtn') btn.textContent = 'Edit Username';
+            if (btnId === 'editEmailBtn') btn.textContent = 'Edit Email';
+            if (btnId === 'editPasswordBtn') btn.textContent = 'Edit Password';
+        }
+    }
+
+    // Handle initial tab selection from URL params
+    document.addEventListener("DOMContentLoaded", function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const tab = urlParams.get('tab');
+        if (tab) {
+            showTab(tab);
+        }
+        const openForm = urlParams.get('open');
+        if (openForm === 'emailForm') {
+            toggleForm('emailForm', 'editEmailBtn');
+        } else if (openForm === 'passwordForm') {
+            toggleForm('passwordForm', 'editPasswordBtn');
+        }
+    });
+</script>
+{% endblock %}
